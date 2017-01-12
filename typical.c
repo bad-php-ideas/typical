@@ -73,7 +73,7 @@ static php_typical_type_node* typical_parse_type(zend_string *type) {
 /* {{{ */
 void php_typical_destroy_type_node(php_typical_type_node *node) {
 	if (!node) return;
-	switch (node->join) {
+	switch (node->type) {
 		case PHP_TYPICAL_MATCH_TYPE:
 			if (node->u.type.class_name) {
 				zend_string_release(node->u.type.class_name);
@@ -158,7 +158,7 @@ static PHP_FUNCTION(typical_set_callback) {
 
 	node = ecalloc(1, sizeof(php_typical_type_node));
 	node->flags = flags;
-	node->join = PHP_TYPICAL_CALLBACK;
+	node->type = PHP_TYPICAL_CALLBACK;
 	ZVAL_ZVAL(&node->u.callback, callback, 1, 0);
 
 	ZVAL_PTR(&znode, node);
@@ -172,15 +172,15 @@ static void typical_get_type(zval *return_value, php_typical_type_node *node) {
 
 	array_init(return_value);
 	add_assoc_long(return_value, "flags", node->flags);
-	add_assoc_long(return_value, "join", node->join);
-	if (node->join == PHP_TYPICAL_MATCH_TYPE) {
+	add_assoc_long(return_value, "type", node->type);
+	if (node->type == PHP_TYPICAL_MATCH_TYPE) {
 		add_assoc_long(return_value, "type_hint", node->u.type.type_hint);
 		if (node->u.type.class_name) {
 			add_assoc_str(return_value, "class_name", node->u.type.class_name);
 		} else {
 			add_assoc_null(return_value, "class_name");
 		}
-	} else if (node->join == PHP_TYPICAL_CALLBACK) {
+	} else if (node->type == PHP_TYPICAL_CALLBACK) {
 		add_assoc_zval(return_value, "callback", &node->u.callback);
 	} else {
 		zval left, right;
@@ -344,7 +344,7 @@ static int typical_verify_custom_type(php_typical_type_node *type, zval *val, ze
 		return SUCCESS;
 	}
 
-	switch (type->join) {
+	switch (type->type) {
 		case PHP_TYPICAL_MATCH_TYPE:
 			return typical_verify_match_type(type->u.type.type_hint, type->u.type.class_name, val, strict);
 

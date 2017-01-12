@@ -14,7 +14,7 @@
 
 static php_typical_type_node *typical_match_expr(php_typical_token *label) {
 	php_typical_type_node *ret = ecalloc(1, sizeof(php_typical_type_node));
-	ret->join = PHP_TYPICAL_MATCH_TYPE;
+	ret->type = PHP_TYPICAL_MATCH_TYPE;
 #define X(C, Z) \
 	if (!strncasecmp(C, label->token, label->token_len)) { ret->u.type.type_hint = Z; }
 	     X("bool", _IS_BOOL)
@@ -36,7 +36,7 @@ static php_typical_type_node *typical_match_expr(php_typical_token *label) {
 static php_typical_type_node *typical_binary_expr(int join, php_typical_type_node *left,
                                                             php_typical_type_node *right) {
 	php_typical_type_node *ret = ecalloc(1, sizeof(php_typical_type_node));
-	ret->join = join;
+	ret->type = join;
 	ret->u.binary.left = left;
 	ret->u.binary.right = right;
 	return ret;

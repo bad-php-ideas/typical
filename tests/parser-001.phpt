@@ -12,7 +12,7 @@ var_dump(typical_get_type('Foo'));
 array(4) {
   ["flags"]=>
   int(1)
-  ["join"]=>
+  ["type"]=>
   int(0)
   ["type_hint"]=>
   int(4)

@@ -23,7 +23,7 @@ typedef struct _php_typical_type_node php_typical_type_node;
 
 struct _php_typical_type_node {
 	zend_uchar flags;
-	zend_uchar join;
+	zend_uchar type;
 	union {
 		struct {
 			zend_uchar type_hint;
