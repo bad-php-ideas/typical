@@ -59,10 +59,6 @@ typical_set_type('Foo', 'int');
 function bar(Foo $x = 42) {}
 ```
 
-### Type parser
-
-There's probably badness in the type parser. I wrote it quickly and haven't fully tested. Bear with me.
-
 ## Future Scope
 
 Things I may add with time.
