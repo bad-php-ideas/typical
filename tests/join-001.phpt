@@ -1,5 +1,5 @@
 --TEST--
-Type aliasing strict
+Unions strict
 --SKIPIF--
 <?php if (!extension_loaded('typical')) echo 'skip';
 --FILE--

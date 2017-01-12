@@ -2,7 +2,7 @@
 %token_type {php_typical_token}
 %default_type {php_typical_type_node*}
 %name php_typical_parser
-%extra_argument {php_typical_type_node **ret}
+%extra_argument {php_typical_parser_extra *extra}
 %start_symbol top_expr
 %left PIPE AMP CARET LP.
 %right QUEST RP.
@@ -44,9 +44,9 @@ static php_typical_type_node *typical_binary_expr(int join, php_typical_type_nod
 
 }
 
+%syntax_error { extra->syntax_error = 1; }
 
-%destructor top_expr { php_typical_destroy_type_node($$); }
-top_expr ::= expr(E). { *ret = E; }
+top_expr ::= expr(E). { extra->ret = E; }
 
 %destructor expr { php_typical_destroy_type_node($$); }
 expr(R) ::= LABEL(L). { R = typical_match_expr(&L); }

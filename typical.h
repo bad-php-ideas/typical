@@ -37,6 +37,11 @@ struct _php_typical_type_node {
 	} u;
 };
 
+typedef struct _php_typical_parser_extra {
+	php_typical_type_node *ret;
+	zend_bool syntax_error;
+} php_typical_parser_extra;
+
 void php_typical_destroy_type_node(php_typical_type_node *node);
 
 #if defined(ZTS) && defined(COMPILE_DL_TYPICAL)

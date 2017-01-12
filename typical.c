@@ -22,6 +22,7 @@
 #include "typical-lexer.h"
 #include "typical-parser.h"
 #include "ext/standard/php_string.h"
+#include "zend_exceptions.h"
 
 #if PHP_MAJOR_VERSION < 7
 # error Typical requires PHP version 7 or later
@@ -37,12 +38,11 @@ static void typical_free_wrapper(void *x) { efree(x); }
 
 int php_typical_get_token(php_typical_tokenizer*, php_typical_token*);
 void *php_typical_parserAlloc(void*(*)(size_t));
-void php_typical_parser(void*, int, php_typical_token, php_typical_type_node**);
+void php_typical_parser(void*, int, php_typical_token, php_typical_parser_extra*);
 void php_typical_parserFree(void*, void (*)(void*));
 
-/* Dumb parser for now.  Just basic matchtypes with no whitespace allowances */
 static php_typical_type_node* typical_parse_type(zend_string *type) {
-	php_typical_type_node *ret = NULL;
+	php_typical_parser_extra extra = { NULL, 0 };
 	php_typical_tokenizer T;
 	php_typical_token token;
 	void *p;
@@ -53,12 +53,21 @@ static php_typical_type_node* typical_parse_type(zend_string *type) {
 	p = php_typical_parserAlloc(typical_malloc_wrapper);
 	while (php_typical_get_token(&T, &token)) {
 		if (token.id != ' ') {
-			php_typical_parser(p, token.id, token, &ret);
+			php_typical_parser(p, token.id, token, &extra);
+		}
+		if (extra.syntax_error) {
+			zend_string *tmp = zend_string_init(token.token, token.token_len, 0);
+			zend_throw_exception_ex(zend_ce_type_error, 0, "Syntax error at \"%s\" (pos %d)",
+				ZSTR_VAL(tmp), ((char*)T.start) - ZSTR_VAL(type));
+			zend_string_release(tmp);
+
+			php_typical_parserFree(p, typical_free_wrapper);
+			return NULL;
 		}
 	}
-	php_typical_parser(p, 0, token, &ret);
+	php_typical_parser(p, 0, token, &extra);
 	php_typical_parserFree(p, typical_free_wrapper);
-	return ret;
+	return extra.ret;
 }
 
 /* {{{ */
@@ -107,11 +116,14 @@ static PHP_FUNCTION(typical_set_type) {
 	if (ZSTR_LEN(type) <= 0) {
 		zend_hash_del(TYPICALG(types), type);
 	} else {
-		zend_string *lalias = php_string_tolower(alias);
-		zval node;
-		ZVAL_PTR(&node, typical_parse_type(type));
-		zend_hash_update(TYPICALG(types), lalias, &node);
-		zend_string_release(lalias);
+		php_typical_type_node *node = typical_parse_type(type);
+		if (node) {
+			zend_string *lalias = php_string_tolower(alias);
+			zval znode;
+			ZVAL_PTR(&znode, node);
+			zend_hash_update(TYPICALG(types), lalias, &znode);
+			zend_string_release(lalias);
+		} /* else exception was thrown */
 	}
 } /* }}} */
 
