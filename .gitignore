@@ -34,3 +34,7 @@ missing
 mkinstalldirs
 modules/
 run-tests.php
+typical-lexer.c
+typical-parser.c
+typical-parser.h
+typical-parser.out

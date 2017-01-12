@@ -1,0 +1,58 @@
+%token_prefix TYP_
+%token_type {php_typical_token}
+%default_type {php_typical_type_node*}
+%name php_typical_parser
+%extra_argument {php_typical_type_node **ret}
+%start_symbol top_expr
+%left PIPE AMP CARET LP.
+%right QUEST RP.
+%nonassoc LABEL.
+%include {
+#include "typical.h"
+#include "typical-lexer.h"
+#include "ext/standard/php_string.h"
+
+static php_typical_type_node *typical_match_expr(php_typical_token *label) {
+	php_typical_type_node *ret = ecalloc(1, sizeof(php_typical_type_node));
+	ret->join = PHP_TYPICAL_MATCH_TYPE;
+#define X(C, Z) \
+	if (!strncasecmp(C, label->token, label->token_len)) { ret->u.type.type_hint = Z; }
+	     X("bool", _IS_BOOL)
+	else X("int", IS_LONG)
+	else X("float", IS_DOUBLE)
+	else X("string", IS_STRING)
+	else X("array", IS_ARRAY)
+	else X("callable", IS_CALLABLE)
+	else X("iterable", IS_ITERABLE)
+	else {
+		ret->u.type.type_hint = IS_OBJECT;
+		ret->u.type.class_name = zend_string_init(label->token, label->token_len, 0);
+		php_strtolower(ZSTR_VAL(ret->u.type.class_name), ZSTR_LEN(ret->u.type.class_name));
+	}
+#undef X
+	return ret;
+}
+
+static php_typical_type_node *typical_binary_expr(int join, php_typical_type_node *left,
+                                                            php_typical_type_node *right) {
+	php_typical_type_node *ret = ecalloc(1, sizeof(php_typical_type_node));
+	ret->join = join;
+	ret->u.binary.left = left;
+	ret->u.binary.right = right;
+	return ret;
+}
+
+}
+
+
+%destructor top_expr { php_typical_destroy_type_node($$); }
+top_expr ::= expr(E). { *ret = E; }
+
+%destructor expr { php_typical_destroy_type_node($$); }
+expr(R) ::= LABEL(L). { R = typical_match_expr(&L); }
+expr(R) ::= LP expr(E) RP. { R = E; }
+expr(R) ::= QUEST expr(E). { E->flags |= PHP_TYPICAL_FLAG_ALLOW_NULL; R = E; }
+expr(R) ::= expr(A) PIPE expr(B). { R = typical_binary_expr(PHP_TYPICAL_JOIN_OR, A, B); }
+expr(R) ::= expr(A) AMP expr(B). { R = typical_binary_expr(PHP_TYPICAL_JOIN_AND, A, B); }
+expr(R) ::= expr(A) CARET expr(B). { R = typical_binary_expr(PHP_TYPICAL_JOIN_XOR, A, B); }
+

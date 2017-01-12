@@ -19,7 +19,8 @@
 /* $Id$ */
 
 #include "typical.h"
-
+#include "typical-lexer.h"
+#include "typical-parser.h"
 #include "ext/standard/php_string.h"
 
 #if PHP_MAJOR_VERSION < 7
@@ -31,35 +32,37 @@ ZEND_DECLARE_MODULE_GLOBALS(typical);
 static php_typical_type_node *typical_lookup_custom_type(const zend_string *type_name);
 static int typical_verify_type_name(zend_string *type_name, zval *val, zend_bool strict);
 
+static void *typical_malloc_wrapper(size_t x) { return emalloc(x); }
+static void typical_free_wrapper(void *x) { efree(x); }
+
+int php_typical_get_token(php_typical_tokenizer*, php_typical_token*);
+void *php_typical_parserAlloc(void*(*)(size_t));
+void php_typical_parser(void*, int, php_typical_token, php_typical_type_node**);
+void php_typical_parserFree(void*, void (*)(void*));
+
 /* Dumb parser for now.  Just basic matchtypes with no whitespace allowances */
 static php_typical_type_node* typical_parse_type(zend_string *type) {
-	php_typical_type_node *node = ecalloc(1, sizeof(php_typical_type_node));
-	const char *p = ZSTR_VAL(type);
+	php_typical_type_node *ret = NULL;
+	php_typical_tokenizer T;
+	php_typical_token token;
+	void *p;
 
-	node->join = PHP_TYPICAL_MATCH_TYPE;
-	if (p[0] == '?') {
-		node->flags |= PHP_TYPICAL_FLAG_ALLOW_NULL;
-		++p;
+	T.start = ZSTR_VAL(type);
+	T.end = T.start + ZSTR_LEN(type);
+
+	p = php_typical_parserAlloc(typical_malloc_wrapper);
+	while (php_typical_get_token(&T, &token)) {
+		if (token.id != ' ') {
+			php_typical_parser(p, token.id, token, &ret);
+		}
 	}
-
-	     if (!strcasecmp("bool", p))     { node->u.type.type_hint = _IS_BOOL; }
-	else if (!strcasecmp("int", p))      { node->u.type.type_hint = IS_LONG; }
-	else if (!strcasecmp("float", p))    { node->u.type.type_hint = IS_DOUBLE; }
-	else if (!strcasecmp("string", p))   { node->u.type.type_hint = IS_STRING; }
-	else if (!strcasecmp("array", p))    { node->u.type.type_hint = IS_ARRAY; }
-	else if (!strcasecmp("callable", p)) { node->u.type.type_hint = IS_CALLABLE; }
-	else if (!strcasecmp("iterable", p)) { node->u.type.type_hint = IS_ITERABLE; }
-	else {
-		node->u.type.type_hint = IS_OBJECT;
-		node->u.type.class_name = zend_string_init(p, ZSTR_LEN(type) - (p - ZSTR_VAL(type)), 0);
-		php_strtolower(ZSTR_VAL(node->u.type.class_name), ZSTR_LEN(node->u.type.class_name));
-	}
-
-	return node;
+	php_typical_parser(p, 0, token, &ret);
+	php_typical_parserFree(p, typical_free_wrapper);
+	return ret;
 }
 
 /* {{{ */
-static void typical_destroy_type_node(php_typical_type_node *node) {
+void php_typical_destroy_type_node(php_typical_type_node *node) {
 	if (!node) return;
 	switch (node->join) {
 		case PHP_TYPICAL_MATCH_TYPE:
@@ -73,14 +76,14 @@ static void typical_destroy_type_node(php_typical_type_node *node) {
 		case PHP_TYPICAL_JOIN_AND:
 		case PHP_TYPICAL_JOIN_OR:
 		case PHP_TYPICAL_JOIN_XOR:
-			typical_destroy_type_node(node->u.binary.left);
-			typical_destroy_type_node(node->u.binary.right);
+			php_typical_destroy_type_node(node->u.binary.left);
+			php_typical_destroy_type_node(node->u.binary.right);
 			break;
 	}
 	efree(node);
 }
 static void typical_destroy_type_alias(zval *zv) {
-	typical_destroy_type_node(Z_PTR_P(zv));
+	php_typical_destroy_type_node(Z_PTR_P(zv));
 }
 /* }}} */
 

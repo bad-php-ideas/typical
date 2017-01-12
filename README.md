@@ -11,8 +11,14 @@ typical_set_type('NullableInt', '?int');
 function foo(NullableInt $x) {}
 function bar(?int $x) {}
 ```
+Types can be combined using `|`(OR), `&`(AND), or `^`(XOR) combinations:
+```php
+typical_set_type('Scalar', 'bool | int | float');
+typical_set_type('IndexableAndIterable', 'ArrayAccess & Iterable');
+typical_set_type('IteratorOrExceptionButNotBoth', 'Iterable ^ Exception');
+```
 
-Or for more complex types:
+Or for even more complex types, use a callback:
 ```php
 typical_set_callback('Numberish', function ($arg, bool $strict) {
   if (is_int($arg) || is_float($arg)) {
@@ -52,13 +58,14 @@ typical_set_type('Foo', 'int');
 
 function bar(Foo $x = 42) {}
 ```
+
+### Type parser
+
+There's probably badness in the type parser. I wrote it quickly and haven't fully tested. Bear with me.
+
 ## Future Scope
 
 Things I may add with time.
-
-### Union/Intersect types
-
-The current type parser used by `typical_set_type()` is pretty dumb, but the type structure already supports AND/OR/XOR unions.  I just need to plug in an expression parser and go to town.  However the callable approach seems to work fairly well.
 
 ### Negative Types
 

@@ -37,6 +37,8 @@ struct _php_typical_type_node {
 	} u;
 };
 
+void php_typical_destroy_type_node(php_typical_type_node *node);
+
 #if defined(ZTS) && defined(COMPILE_DL_TYPICAL)
 ZEND_TSRMLS_CACHE_EXTERN();
 #endif
