@@ -52,10 +52,6 @@ typical_set_type('Foo', 'int');
 
 function bar(Foo $x = 42) {}
 ```
-### Variadic Support
-
-Just haven't gotten round to it.
-
 ## Future Scope
 
 Things I may add with time.

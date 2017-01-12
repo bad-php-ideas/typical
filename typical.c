@@ -443,8 +443,30 @@ static int typical_RECV_INIT(zend_execute_data *execute_data) {
 
 static int typical_RECV_VARIADIC(zend_execute_data *execute_data) {
 	TYPICAL_OPLINE;
+	uint32_t arg_num = opline->op1.num;
+	uint32_t arg_count = EX_NUM_ARGS();
+	zval *arg, *params = EX_VAR(opline->result.var);
 
-	return ZEND_USER_OPCODE_DISPATCH;
+	if ((arg_num > arg_count) ||
+		((EX(func)->op_array.fn_flags & ZEND_ACC_HAS_TYPE_HINTS) == 0)) {
+		return ZEND_USER_OPCODE_DISPATCH;
+	}
+
+	array_init_size(params, arg_count - arg_num + 1);
+	zend_hash_real_init(Z_ARRVAL_P(params), 1);
+	ZEND_HASH_FILL_PACKED(Z_ARRVAL_P(params)) {
+		void **slot = CACHE_ADDR(opline->op2.num);
+		arg = EX_VAR_NUM(EX(func)->op_array.last_var + EX(func)->op_array.T);
+		do {
+			typical_verify_arg_type(EX(func), arg_num, arg, slot);
+			if (Z_OPT_REFCOUNTED_P(arg)) Z_ADDREF_P(arg);
+			ZEND_HASH_FILL_ADD(arg);
+			++arg;
+		} while (++arg_num <= arg_count);
+	} ZEND_HASH_FILL_END();
+
+	++EX(opline);
+	return ZEND_USER_OPCODE_CONTINUE;
 }
 
 /* {{{ PHP_MINI_FUNCTION */
